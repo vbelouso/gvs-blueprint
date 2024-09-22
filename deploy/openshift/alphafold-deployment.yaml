@@ -1,0 +1,57 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: alphafold
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alphafold
+  template:
+    metadata:
+      labels:
+        app: alphafold
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.deploy.driver: 'true'
+      initContainers:
+        - resources: {}
+          name: init-container
+          command:
+            - sh
+            - '-c'
+            - |
+              set -e
+              echo 'Update volume permissions' && chmod 777 -v -R /models
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: alphafold-models
+              mountPath: /models
+          image: busybox
+      serviceAccountName: alphafold
+      imagePullSecrets:
+        - name: nvcr-io-pull-secret
+      containers:
+        - resources:
+            limits:
+              nvidia.com/gpu: '1'
+          name: container
+          env:
+            - name: NGC_CLI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ngc-api-key
+                  key: NGC_CLI_API_KEY
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - name: alphafold-models
+              mountPath: /opt/nim/
+          image: 'nvcr.io/nim/deepmind/alphafold2:1.0.0'
+      serviceAccount: alphafold
+      volumes:
+        - name: alphafold-models
+          persistentVolumeClaim:
+            claimName: alphafold-models

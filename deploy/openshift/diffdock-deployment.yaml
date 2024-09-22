@@ -1,0 +1,32 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: diffdock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: diffdock
+  template:
+    metadata:
+      labels:
+        app: diffdock
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.deploy.driver: 'true'
+      serviceAccountName: diffdock
+      imagePullSecrets:
+        - name: nvcr-io-pull-secret
+      containers:
+        - name: container
+          image: 'nvcr.io/nim/mit/diffdock:1.2.0'
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: NGC_CLI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ngc-api-key
+                  key: NGC_CLI_API_KEY
+      serviceAccount: diffdock
